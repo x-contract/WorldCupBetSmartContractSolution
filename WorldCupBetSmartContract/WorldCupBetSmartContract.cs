@@ -56,7 +56,7 @@
  * 
  * 9. CollectAward(byte[] address)
  * Player awards.
- * address: The address of players.
+ * address: The address of specified player.
  * 
  * ========================================================================================================================
  * The structure of byte storage
@@ -176,7 +176,7 @@ namespace WorldCupBetSmartContract
                 else if ("TestAmount" == method)
                     return TestAmount();
                 else if ("TestGetTimStamp" == method)
-                    return GetTimStamp();
+                    return GetTimeStamp();
                 else if ("GetIntOdds" == method)
                     return GetIntOdds((int)args[0], (int)args[1]);
                 else if ("BetRecordArray" == method)
@@ -312,6 +312,8 @@ namespace WorldCupBetSmartContract
             int odds = GetIntOdds(fixtureID, betType);
             if (0 == odds)
                 return new byte[] { 0xbb };
+            if (GetTimeStamp() >= GetLockdownTimeStamp(fixtureID))
+                return new byte[] { 0xee };
 
             byte[] betRecord = GetBetRecordArray(fixtureID, betType, odds, amount);
             account = AddBetRecord(account, betRecord);
@@ -381,7 +383,7 @@ namespace WorldCupBetSmartContract
         #endregion
 
         #region --- Private functions ---
-        public static uint GetTimStamp()
+        public static uint GetTimeStamp()
         {
             return Runtime.Time;
         }
@@ -553,14 +555,23 @@ namespace WorldCupBetSmartContract
             if (0 == oddsRawData.Length)
                 return new byte[] { 0xaa, 0xbb };
             byte[] ret = new byte[0];
-            for (int i = 0; i < oddsRawData.Length; i += 24)
+            for (int i = 0; i < oddsRawData.Length; i += 28)
             {
                 if (BytesToInt(oddsRawData, i) == matchID)
                 {
-                    ret = oddsRawData.Range(i, 24);
+                    ret = oddsRawData.Range(i, 28);
                 }
             }
             return ret;
+        }
+        private static uint GetLockdownTimeStamp(int matchID)
+        {
+            byte[] oddsLine = GetOddsLine(matchID);
+            uint temp = 0;
+            if (0 == oddsLine.Length)
+                return temp;
+            temp = BytesToUInt(oddsLine, 24);
+            return temp;
         }
         private static uint GetLastApplyChipsTimeStamp(byte[] account)
         {

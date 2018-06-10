@@ -14,6 +14,7 @@ namespace WorldCup.UnitTest
 {
     public class Program
     {
+        private static DateTime _startDateTime = new DateTime(1970, 1, 1, 0, 0, 0).ToLocalTime();
         private static string _uri = "http://139.219.9.59:10332";
         private static Random _rnd = new Random(DateTime.Now.Millisecond);
         // 账户信息
@@ -88,10 +89,10 @@ namespace WorldCup.UnitTest
             //code = TESTGetIntOdds();
             //SendRequest(code).GetAwaiter();
 
-            //PrepareForBet();
-            //code = TESTBet();
-            //SendRequest(code).GetAwaiter();
-            //System.Threading.Thread.Sleep(20000);
+            PrepareForBet();
+            code = TESTBet();
+            SendRequest(code).GetAwaiter();
+            System.Threading.Thread.Sleep(20000);
 
             //PrepareForCollectAward();
             //code = TESTGetMatchResult();
@@ -110,7 +111,10 @@ namespace WorldCup.UnitTest
             //code = TestCalcMatchResult();
             //SendRequest(code).GetAwaiter();
 
-            code = TESTGetAcountInfo();
+            //code = TESTGetAcountInfo();
+            //SendRequest(code).GetAwaiter();
+
+            code = TestPushOddsList();
             SendRequest(code).GetAwaiter();
 
             Console.ReadLine();
@@ -387,7 +391,11 @@ namespace WorldCup.UnitTest
                 line.AddRange(BitConverter.GetBytes((int)((float)r["主队赢"] * 1000)));
                 line.AddRange(BitConverter.GetBytes((int)((float)r["客队赢"] * 1000)));
                 line.AddRange(BitConverter.GetBytes((int)((float)r["平局"] * 1000)));
-
+                string datetime = r["比赛时间"].ToString();
+                datetime = datetime.Substring(0, 4) + "-" + datetime.Substring(4, 2) + "-"
+                    + datetime.Substring(6, 2) + datetime.Substring(8, datetime.Length - 8);
+                DateTime lockdown = DateTime.Parse(datetime);
+                line.AddRange(BitConverter.GetBytes(GetTimeStamp(lockdown)));
                 arr.AddRange(line.ToArray());
                 line.Clear();
             }
@@ -395,8 +403,8 @@ namespace WorldCup.UnitTest
             sb.EmitPush(_rnd.Next());
             sb.Emit(Neo.VM.OpCode.DROP);
             byte[] v = arr.ToArray();
-            byte[] v1 = new byte[768];
-            for (int i = 0; i < 768; i++)
+            byte[] v1 = new byte[v.Length];
+            for (int i = 0; i < v.Length; i++)
                 v1[i] = v[i];
             sb.EmitPush(v1);
             sb.EmitPush(1);
@@ -1098,6 +1106,11 @@ namespace WorldCup.UnitTest
             string sRet = ThinNeo.Helper.Bytes2HexString(msRet.ToArray());
             msRet.Close();
             return sRet;
+        }
+        private static int GetTimeStamp(DateTime dt)
+        {
+            // 提前15分钟封盘
+            return (int)((dt - _startDateTime).TotalSeconds) - 900;
         }
     }
 }
