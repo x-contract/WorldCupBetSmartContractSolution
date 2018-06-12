@@ -25,7 +25,7 @@ namespace WorldCup.UnitTest
         private static byte[] _privateKey = ThinNeo.Helper.HexString2Bytes("6628084b9180ae7491fa1587638566524a39d6f8e8a90d7b5b6a96320cf0a6fd");
 
         // 合约地址,该地址随合约部署每次都必须修改！！！
-        private static UInt160 _contractHash = UInt160.Parse("0x068642495270750c46ca86b20eecd8004d98d676");
+        private static UInt160 _contractHash = UInt160.Parse("0x8173136213db1cdd4f021ce48a7c319341830265");
         private static Hash160 _addressHash = ThinNeo.Helper.GetScriptHashFromPublicKey(_publicKey);
 
         private static  string OddsList = 
@@ -63,16 +63,16 @@ namespace WorldCup.UnitTest
             //code = TESTCollectAward();
             //SendRequest(code).GetAwaiter();
 
-            code = TestApplyChips();
-            SendRequest(code).GetAwaiter();
-            System.Threading.Thread.Sleep(20000);
-            code = TestBalanceOf();
-            SendRequest(code).GetAwaiter();
-            code = TESTPushOddsData();
-            SendRequest(code).GetAwaiter();
-            code = TESTInputMatchResult();
-            SendRequest(code).GetAwaiter();
-            System.Threading.Thread.Sleep(20000);
+            //code = TestApplyChips();
+            //SendRequest(code).GetAwaiter();
+            //System.Threading.Thread.Sleep(20000);
+            //code = TestBalanceOf();
+            //SendRequest(code).GetAwaiter();
+            //code = TESTPushOddsData();
+            //SendRequest(code).GetAwaiter();
+            //code = TESTInputMatchResult();
+            //SendRequest(code).GetAwaiter();
+            //System.Threading.Thread.Sleep(20000);
 
             //code = TestPushOddsList();
             //SendRequest(code).GetAwaiter();
@@ -89,8 +89,8 @@ namespace WorldCup.UnitTest
             //SendRequest(code).GetAwaiter();
 
             //PrepareForBet();
-            code = TESTBet();
-            SendRequest(code).GetAwaiter();
+            //code = TESTBet();
+            //SendRequest(code).GetAwaiter();
             //System.Threading.Thread.Sleep(20000);
 
             //PrepareForCollectAward();
@@ -112,6 +112,8 @@ namespace WorldCup.UnitTest
 
             //code = TESTGetAcountInfo();
             //SendRequest(code).GetAwaiter();
+            code = TESTGetBetHistory();
+            SendRequest(code).GetAwaiter();
 
             Console.ReadLine();
         }
@@ -723,6 +725,45 @@ namespace WorldCup.UnitTest
             sb.EmitPush(1);
             sb.Emit(Neo.VM.OpCode.PACK);
             sb.EmitPush("GetAccountInfo");
+            //调用已发布的合约，最后加一条EmitAppCall即可
+            var addr = _contractHash;
+            sb.EmitAppCall(addr.ToArray());
+            var _params = sb.ToArray();
+            var str2 = Neo.Helper.ToHexString(_params);
+
+            Transaction tx = new Transaction();
+            ThinNeo.Attribute att = new ThinNeo.Attribute();
+            att.data = _addressHash;
+            tx.attributes = new ThinNeo.Attribute[] { att };
+            att.usage = TransactionAttributeUsage.Script;
+            tx.version = 0x01;
+            tx.type = TransactionType.InvocationTransaction;
+            tx.inputs = new TransactionInput[0];
+            tx.outputs = new TransactionOutput[0];
+            InvokeTransData data = new InvokeTransData();
+            data.gas = new ThinNeo.Fixed8(0);
+            data.script = sb.ToArray();
+            tx.extdata = data;
+            MemoryStream ms = new MemoryStream();
+            tx.SerializeUnsigned(ms);
+            byte[] signdata = ThinNeo.Helper.Sign(ms.ToArray(), _privateKey);
+            ms.Close();
+            tx.AddWitness(signdata, _publicKey, _address);
+            MemoryStream msRet = new MemoryStream();
+            tx.Serialize(msRet);
+            string sRet = ThinNeo.Helper.Bytes2HexString(msRet.ToArray());
+            msRet.Close();
+            return sRet;
+        }
+        private static string TESTGetBetHistory()
+        {
+            Neo.VM.ScriptBuilder sb = new Neo.VM.ScriptBuilder();
+            sb.EmitPush(_rnd.Next());
+            sb.Emit(Neo.VM.OpCode.DROP);
+            sb.EmitPush(Neo.Helper.HexToBytes(_addressHex));
+            sb.EmitPush(1);
+            sb.Emit(Neo.VM.OpCode.PACK);
+            sb.EmitPush("GetBetHistory");
             //调用已发布的合约，最后加一条EmitAppCall即可
             var addr = _contractHash;
             sb.EmitAppCall(addr.ToArray());

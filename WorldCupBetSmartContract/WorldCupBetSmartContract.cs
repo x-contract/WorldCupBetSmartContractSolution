@@ -167,6 +167,8 @@ namespace WorldCupBetSmartContract
                     return ResetAccount((byte[])args[0]);
                 else if ("CollectAward" == method)
                     return CollectAward((byte[])args[0]);
+                else if ("GetBetHistory" == method)
+                    return GetBetHistory((byte[])args[0]);
 
                 //  === Below are methods for test. ===
                 else if ("GetAccountInfo" == method)
@@ -367,6 +369,14 @@ namespace WorldCupBetSmartContract
                 Storage.Put(Storage.CurrentContext, address, account);
             }
             return totalWinAmount;
+        }
+        public static byte[] GetBetHistory(byte[] address)
+        {
+            byte[] account = GetAccountInfo(address);
+            if (account.Length >= 13)
+                return account.Range(9, account.Length - 9);
+            else
+                return account;
         }
         public static bool Reset()
         {
