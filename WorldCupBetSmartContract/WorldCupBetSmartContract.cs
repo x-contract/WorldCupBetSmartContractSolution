@@ -56,7 +56,7 @@
  * 
  * 9. CollectAward(byte[] address)
  * Player awards.
- * address: The address of specified player.
+ * address: The address of players.
  * 
  * ========================================================================================================================
  * The structure of byte storage
@@ -176,7 +176,7 @@ namespace WorldCupBetSmartContract
                 else if ("TestAmount" == method)
                     return TestAmount();
                 else if ("TestGetTimStamp" == method)
-                    return GetTimeStamp();
+                    return GetTimStamp();
                 else if ("GetIntOdds" == method)
                     return GetIntOdds((int)args[0], (int)args[1]);
                 else if ("BetRecordArray" == method)
@@ -312,7 +312,7 @@ namespace WorldCupBetSmartContract
             int odds = GetIntOdds(fixtureID, betType);
             if (0 == odds)
                 return new byte[] { 0xbb };
-            if (GetTimeStamp() >= GetLockdownTimeStamp(fixtureID))
+            if (0 < GetMatchResult(fixtureID).Length)   //The match has been finished.
                 return new byte[] { 0xee };
 
             byte[] betRecord = GetBetRecordArray(fixtureID, betType, odds, amount);
@@ -323,7 +323,7 @@ namespace WorldCupBetSmartContract
             account = UpdateBalanceAmount(account, balance);
             // Write record.
             Storage.Put(Storage.CurrentContext, address, account);
-            return account;
+            return betRecord;
         }
         public static uint CollectAward(byte[] address)
         {
@@ -348,7 +348,7 @@ namespace WorldCupBetSmartContract
                     return 0xcc;
                 byte[] matchResult = GetMatchResult(matchID);
                 if (0 == matchResult.Length)
-                    return 0xee;
+                    continue;
                 if (GetBetType(betRecord) == CalcMatchResult(matchResult))
                 {
                     int odds = GetOddsByMatchID(betRecord);
@@ -383,7 +383,7 @@ namespace WorldCupBetSmartContract
         #endregion
 
         #region --- Private functions ---
-        public static uint GetTimeStamp()
+        public static uint GetTimStamp()
         {
             return Runtime.Time;
         }
@@ -555,23 +555,14 @@ namespace WorldCupBetSmartContract
             if (0 == oddsRawData.Length)
                 return new byte[] { 0xaa, 0xbb };
             byte[] ret = new byte[0];
-            for (int i = 0; i < oddsRawData.Length; i += 28)
+            for (int i = 0; i < oddsRawData.Length; i += 24)
             {
                 if (BytesToInt(oddsRawData, i) == matchID)
                 {
-                    ret = oddsRawData.Range(i, 28);
+                    ret = oddsRawData.Range(i, 24);
                 }
             }
             return ret;
-        }
-        private static uint GetLockdownTimeStamp(int matchID)
-        {
-            byte[] oddsLine = GetOddsLine(matchID);
-            uint temp = 0;
-            if (0 == oddsLine.Length)
-                return temp;
-            temp = BytesToUInt(oddsLine, 24);
-            return temp;
         }
         private static uint GetLastApplyChipsTimeStamp(byte[] account)
         {

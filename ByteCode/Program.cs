@@ -14,7 +14,6 @@ namespace WorldCup.UnitTest
 {
     public class Program
     {
-        private static DateTime _startDateTime = new DateTime(1970, 1, 1, 0, 0, 0).ToLocalTime();
         private static string _uri = "http://139.219.9.59:10332";
         private static Random _rnd = new Random(DateTime.Now.Millisecond);
         // 账户信息
@@ -26,7 +25,7 @@ namespace WorldCup.UnitTest
         private static byte[] _privateKey = ThinNeo.Helper.HexString2Bytes("6628084b9180ae7491fa1587638566524a39d6f8e8a90d7b5b6a96320cf0a6fd");
 
         // 合约地址,该地址随合约部署每次都必须修改！！！
-        private static UInt160 _contractHash = UInt160.Parse("0x2feae288f55ed2f2381191e4b4692c13453fae00");
+        private static UInt160 _contractHash = UInt160.Parse("0x068642495270750c46ca86b20eecd8004d98d676");
         private static Hash160 _addressHash = ThinNeo.Helper.GetScriptHashFromPublicKey(_publicKey);
 
         private static  string OddsList = 
@@ -64,16 +63,16 @@ namespace WorldCup.UnitTest
             //code = TESTCollectAward();
             //SendRequest(code).GetAwaiter();
 
-            //code = TestApplyChips();
-            //SendRequest(code).GetAwaiter();
-            //System.Threading.Thread.Sleep(20000);
-            //code = TestBalanceOf();
-            //SendRequest(code).GetAwaiter();
-            //code = TESTPushOddsData();
-            //SendRequest(code).GetAwaiter();
-            //code = TESTInputMatchResult();
-            //SendRequest(code).GetAwaiter();
-            //System.Threading.Thread.Sleep(20000);
+            code = TestApplyChips();
+            SendRequest(code).GetAwaiter();
+            System.Threading.Thread.Sleep(20000);
+            code = TestBalanceOf();
+            SendRequest(code).GetAwaiter();
+            code = TESTPushOddsData();
+            SendRequest(code).GetAwaiter();
+            code = TESTInputMatchResult();
+            SendRequest(code).GetAwaiter();
+            System.Threading.Thread.Sleep(20000);
 
             //code = TestPushOddsList();
             //SendRequest(code).GetAwaiter();
@@ -89,10 +88,10 @@ namespace WorldCup.UnitTest
             //code = TESTGetIntOdds();
             //SendRequest(code).GetAwaiter();
 
-            PrepareForBet();
+            //PrepareForBet();
             code = TESTBet();
             SendRequest(code).GetAwaiter();
-            System.Threading.Thread.Sleep(20000);
+            //System.Threading.Thread.Sleep(20000);
 
             //PrepareForCollectAward();
             //code = TESTGetMatchResult();
@@ -113,9 +112,6 @@ namespace WorldCup.UnitTest
 
             //code = TESTGetAcountInfo();
             //SendRequest(code).GetAwaiter();
-
-            code = TestPushOddsList();
-            SendRequest(code).GetAwaiter();
 
             Console.ReadLine();
         }
@@ -391,11 +387,7 @@ namespace WorldCup.UnitTest
                 line.AddRange(BitConverter.GetBytes((int)((float)r["主队赢"] * 1000)));
                 line.AddRange(BitConverter.GetBytes((int)((float)r["客队赢"] * 1000)));
                 line.AddRange(BitConverter.GetBytes((int)((float)r["平局"] * 1000)));
-                string datetime = r["比赛时间"].ToString();
-                datetime = datetime.Substring(0, 4) + "-" + datetime.Substring(4, 2) + "-"
-                    + datetime.Substring(6, 2) + datetime.Substring(8, datetime.Length - 8);
-                DateTime lockdown = DateTime.Parse(datetime);
-                line.AddRange(BitConverter.GetBytes(GetTimeStamp(lockdown)));
+
                 arr.AddRange(line.ToArray());
                 line.Clear();
             }
@@ -403,8 +395,8 @@ namespace WorldCup.UnitTest
             sb.EmitPush(_rnd.Next());
             sb.Emit(Neo.VM.OpCode.DROP);
             byte[] v = arr.ToArray();
-            byte[] v1 = new byte[v.Length];
-            for (int i = 0; i < v.Length; i++)
+            byte[] v1 = new byte[768];
+            for (int i = 0; i < 768; i++)
                 v1[i] = v[i];
             sb.EmitPush(v1);
             sb.EmitPush(1);
@@ -1106,11 +1098,6 @@ namespace WorldCup.UnitTest
             string sRet = ThinNeo.Helper.Bytes2HexString(msRet.ToArray());
             msRet.Close();
             return sRet;
-        }
-        private static int GetTimeStamp(DateTime dt)
-        {
-            // 提前15分钟封盘
-            return (int)((dt - _startDateTime).TotalSeconds) - 900;
         }
     }
 }
