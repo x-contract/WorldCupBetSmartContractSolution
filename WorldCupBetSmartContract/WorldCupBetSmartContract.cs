@@ -192,7 +192,7 @@ namespace WorldCupBetSmartContract
                 else if ("GetOddsData" == method)
                     return GetOddsData();
                 else if ("SetCalcaute" == method)
-                    return SetCalcaute((byte[])args[0], (bool)args[1]);
+                    return SetCalcaute((byte[])args[0]);
                 else
                     return "UNKNOWN CALL";
             }
@@ -340,16 +340,14 @@ namespace WorldCupBetSmartContract
                 return 0;
             uint totalWinAmount = 0;
             int betCount = GetBetRecordCount(account);
-            for (int i = 0; i < betCount; i++)
+            for (int i = 0; i < betCount; i++)      // Calcuate Bet record one by one.
             {
                 byte[] betRecord = GetBetRecord(account, i);
                 if (0 == betRecord.Length)
                     return 0xbb;
                 if (IsCalcatued(betRecord))
-                    continue;
-                // Calcuate Bet record one by one.
+                    continue;               
                 int matchID = GetMatchID(betRecord);
-                //return 0xaa;
                 if (0 == matchID)
                     return 0xcc;
                 byte[] matchResult = GetMatchResult(matchID);
@@ -363,15 +361,15 @@ namespace WorldCupBetSmartContract
                         uint award = ((uint)(GetBetAmount(betRecord) * odds) / 1000);
                         uint balance = GetBalance(account);
                         balance = balance + award;
+                        // Update account data.
+                        account = UpdateBetRecord(account, i, betRecord);
                         account = UpdateBalanceAmount(account, balance);
                         totalWinAmount = totalWinAmount + award;
-                        // Write to account.
-                        betRecord = SetCalcaute(betRecord, true);
-                        account = UpdateBetRecord(account, i, betRecord);
-                        Storage.Put(Storage.CurrentContext, address, account);
                     }
                 }
             }
+            //Write to Storage.
+            Storage.Put(Storage.CurrentContext, address, account);
             return totalWinAmount;
         }
         public static byte[] GetBetHistory(byte[] address)
@@ -474,10 +472,13 @@ namespace WorldCupBetSmartContract
             if (0 == account.Length
                 || (13 + (index + 1) * 14) > account.Length) // Index out of range.
                 return new byte[0];
-            byte[] ret = account.Range(0, 13 + index * 14).Concat(betRecord);
+
+            byte[] ret = account.Range(0, 13 + index * 14).Concat(betRecord.Range(0, 5));
+            ret = ret.Concat(new byte[] { 0x0f });
+            ret = ret.Concat(betRecord.Range(6, betRecord.Length - 6));
             ret = ret.Concat(account.Range(13 + (index + 1) * 14, account.Length - (13 + (index + 1) * 14)));
 
-            return account;
+            return ret;
         }
         private static int GetMatchID(byte[] betRecord)
         {
@@ -500,16 +501,12 @@ namespace WorldCupBetSmartContract
             else
                 return true;
         }
-        private static byte[] SetCalcaute(byte[] betRecord, bool isCalc)
+        private static byte[] SetCalcaute(byte[] betRecord)
         {
             if (0 == betRecord.Length)
                 return new byte[0];
-            byte[] temp = new byte[0];
-            if (true == isCalc)
-                temp = new byte[] { 0x0f };
-            else
-                temp = new byte[] { 0x00 };
 
+            byte[] temp = new byte[] { 0x0f };
             byte[] ret = betRecord.Range(0, 5).Concat(temp);
             ret = ret.Concat(betRecord.Range(6, betRecord.Length - 6));
             return ret;

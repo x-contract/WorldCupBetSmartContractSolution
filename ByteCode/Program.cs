@@ -26,7 +26,7 @@ namespace WorldCup.UnitTest
         private static byte[] _privateKey = ThinNeo.Helper.HexString2Bytes("6628084b9180ae7491fa1587638566524a39d6f8e8a90d7b5b6a96320cf0a6fd");
 
         // 合约地址,该地址随合约部署每次都必须修改！！！
-        private static UInt160 _contractHash = UInt160.Parse("0x4e4185c3ef8e7408b6901b68f27f07bb5c7d804f");
+        private static UInt160 _contractHash = UInt160.Parse("0xec6abcdc225e02ac24dab68231c0cc3153118efc");
         private static Hash160 _addressHash = ThinNeo.Helper.GetScriptHashFromPublicKey(_publicKey);
 
         private static  string OddsList = 
@@ -48,7 +48,7 @@ namespace WorldCup.UnitTest
             "242428,20180619 23:00,波兰,塞内加尔,2000,1860,21800,3150,3050";
 
         // private static string OddsList1 = "242404,20180614 23:00,俄罗斯,沙地阿拉伯,1940,1920,1340,8400,4150" + "\r\n";
-        private static byte[] MatchResult = new byte[] { 228, 178, 3, 0, 3, 2, 229, 178, 3, 0, 1, 1, 230, 178, 3, 0, 1, 3 };
+        private static byte[] MatchResult = new byte[] { 6, 179, 3, 0, 3, 2, 229, 178, 3, 0, 1, 1, 230, 178, 3, 0, 1, 3 };
 
         public static void Main(string[] args)
         {
@@ -61,11 +61,6 @@ namespace WorldCup.UnitTest
             //code = TESTReset();
             //SendRequest(code).GetAwaiter();
             //code = TESTResetAcount();
-            //SendRequest(code).GetAwaiter();
-
-            //code = TESTOddsLine();
-            //SendRequest(code).GetAwaiter();
-            //code = TESTCollectAward();
             //SendRequest(code).GetAwaiter();
 
             code = TestApplyChips();
@@ -83,29 +78,15 @@ namespace WorldCup.UnitTest
             //code = TESTGetOddsList();
             //SendRequest(code).GetAwaiter();
 
-            //code = TESTResetAcount();
-            //SendRequest(code).GetAwaiter();
-
-            //code = TESTGetTimeStamp();
-            //SendRequest(code).GetAwaiter();
-            //code = TESTGetIntOdds();
-            //SendRequest(code).GetAwaiter();
-
-            //PrepareForBet();
             code = TESTBet();
             SendRequest(code).GetAwaiter();
             System.Threading.Thread.Sleep(20000);
 
-            //PrepareForCollectAward();
-            //code = TESTGetMatchResult();
-            //SendRequest(code).GetAwaiter();
-            //System.Threading.Thread.Sleep(20000);
-
-            //code = TESTInputMatchResult();
-            //SendRequest(code).GetAwaiter();
-            //System.Threading.Thread.Sleep(20000);
-            //code = TestCollectAward();
-            //SendRequest(code).GetAwaiter();
+            code = TESTInputMatchResult();
+            SendRequest(code).GetAwaiter();
+            System.Threading.Thread.Sleep(30000);
+            code = TestCollectAward();
+            SendRequest(code).GetAwaiter();
 
             //code = TESTGetAcountInfo();
             //SendRequest(code).GetAwaiter();
@@ -117,10 +98,11 @@ namespace WorldCup.UnitTest
             //code = TestCalcMatchResult();
             //SendRequest(code).GetAwaiter();
 
+            System.Threading.Thread.Sleep(30000);
             //code = TESTGetAcountInfo();
             //SendRequest(code).GetAwaiter();
-            //code = TESTGetBetHistory();
-            //SendRequest(code).GetAwaiter();
+            code = TESTGetBetHistory();
+            SendRequest(code).GetAwaiter();
 
             //code = TESTSetCalculate();
             //SendRequest(code).GetAwaiter();
@@ -131,7 +113,7 @@ namespace WorldCup.UnitTest
             //code = TESTIsLockdown();
             //SendRequest(code).GetAwaiter();
 
-
+            Console.WriteLine("Completed!!!");
             Console.ReadLine();
         }
         private async static Task SendRequest(string tansaction)
@@ -1163,7 +1145,7 @@ namespace WorldCup.UnitTest
         }
         private static string TESTSetCalculate()
         {
-            byte[] betRecord = new byte[] { 0xe4, 0xb2, 0x03, 0x00, 0x01, 0x00, 0x32, 0x05, 0x00, 0x00, 0xe8, 0x03, 0x00, 0x00 };
+            byte[] betRecord = new byte[] { 0x06, 0xb3, 0x03, 0x00, 0x01, 0x00, 0xdc, 0x0a, 0x00, 0x00, 0xe8, 0x03, 0x00, 0x00 };
             Neo.VM.ScriptBuilder sb = new Neo.VM.ScriptBuilder();
             sb.EmitPush(_rnd.Next());
             sb.Emit(Neo.VM.OpCode.DROP);
