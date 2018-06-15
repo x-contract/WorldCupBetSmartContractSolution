@@ -16,6 +16,7 @@ namespace WorldCup.UnitTest
     {
         private static string _uri = "http://139.219.9.59:10332";
         private static Random _rnd = new Random(DateTime.Now.Millisecond);
+        private static DateTime _startDateTime = new DateTime(1970, 1, 1, 0, 0, 0);
         // 账户信息
         private static string _address = "XQ3oFBKf7HH5ZYxd79sdsiEFysExbCbQHv";
         private static string _addressHex = "101d568f515ade12a7c19aa4bf3e659a0f314d8b";
@@ -25,7 +26,7 @@ namespace WorldCup.UnitTest
         private static byte[] _privateKey = ThinNeo.Helper.HexString2Bytes("6628084b9180ae7491fa1587638566524a39d6f8e8a90d7b5b6a96320cf0a6fd");
 
         // 合约地址,该地址随合约部署每次都必须修改！！！
-        private static UInt160 _contractHash = UInt160.Parse("0x8173136213db1cdd4f021ce48a7c319341830265");
+        private static UInt160 _contractHash = UInt160.Parse("0x4e4185c3ef8e7408b6901b68f27f07bb5c7d804f");
         private static Hash160 _addressHash = ThinNeo.Helper.GetScriptHashFromPublicKey(_publicKey);
 
         private static  string OddsList = 
@@ -46,7 +47,7 @@ namespace WorldCup.UnitTest
             "242427,20180619 20:00,哥伦比亚,日本,1960,1900,1700,4480,3350" + "\r\n" +
             "242428,20180619 23:00,波兰,塞内加尔,2000,1860,21800,3150,3050";
 
-        private static string OddsList1 = "242404,20180614 23:00,俄罗斯,沙地阿拉伯,1940,1920,1340,8400,4150" + "\r\n";
+        // private static string OddsList1 = "242404,20180614 23:00,俄罗斯,沙地阿拉伯,1940,1920,1340,8400,4150" + "\r\n";
         private static byte[] MatchResult = new byte[] { 228, 178, 3, 0, 3, 2, 229, 178, 3, 0, 1, 1, 230, 178, 3, 0, 1, 3 };
 
         public static void Main(string[] args)
@@ -57,22 +58,24 @@ namespace WorldCup.UnitTest
             //code = TESTGetOddsData();
             //SendRequest(code).GetAwaiter();
 
+            //code = TESTReset();
+            //SendRequest(code).GetAwaiter();
+            //code = TESTResetAcount();
+            //SendRequest(code).GetAwaiter();
 
             //code = TESTOddsLine();
             //SendRequest(code).GetAwaiter();
             //code = TESTCollectAward();
             //SendRequest(code).GetAwaiter();
 
-            //code = TestApplyChips();
-            //SendRequest(code).GetAwaiter();
-            //System.Threading.Thread.Sleep(20000);
-            //code = TestBalanceOf();
-            //SendRequest(code).GetAwaiter();
-            //code = TESTPushOddsData();
-            //SendRequest(code).GetAwaiter();
-            //code = TESTInputMatchResult();
-            //SendRequest(code).GetAwaiter();
-            //System.Threading.Thread.Sleep(20000);
+            code = TestApplyChips();
+            SendRequest(code).GetAwaiter();
+            System.Threading.Thread.Sleep(20000);
+            code = TestBalanceOf();
+            SendRequest(code).GetAwaiter();
+            code = TESTPushOddsData();
+            SendRequest(code).GetAwaiter();
+            System.Threading.Thread.Sleep(20000);
 
             //code = TestPushOddsList();
             //SendRequest(code).GetAwaiter();
@@ -89,14 +92,18 @@ namespace WorldCup.UnitTest
             //SendRequest(code).GetAwaiter();
 
             //PrepareForBet();
-            //code = TESTBet();
-            //SendRequest(code).GetAwaiter();
-            //System.Threading.Thread.Sleep(20000);
+            code = TESTBet();
+            SendRequest(code).GetAwaiter();
+            System.Threading.Thread.Sleep(20000);
 
             //PrepareForCollectAward();
             //code = TESTGetMatchResult();
             //SendRequest(code).GetAwaiter();
-            //code = TESTGetBetRecord();
+            //System.Threading.Thread.Sleep(20000);
+
+            //code = TESTInputMatchResult();
+            //SendRequest(code).GetAwaiter();
+            //System.Threading.Thread.Sleep(20000);
             //code = TestCollectAward();
             //SendRequest(code).GetAwaiter();
 
@@ -112,8 +119,18 @@ namespace WorldCup.UnitTest
 
             //code = TESTGetAcountInfo();
             //SendRequest(code).GetAwaiter();
-            code = TESTGetBetHistory();
-            SendRequest(code).GetAwaiter();
+            //code = TESTGetBetHistory();
+            //SendRequest(code).GetAwaiter();
+
+            //code = TESTSetCalculate();
+            //SendRequest(code).GetAwaiter();
+
+            //code = TESTPushOddsData();
+            //SendRequest(code).GetAwaiter();
+            //System.Threading.Thread.Sleep(20000);
+            //code = TESTIsLockdown();
+            //SendRequest(code).GetAwaiter();
+
 
             Console.ReadLine();
         }
@@ -389,7 +406,11 @@ namespace WorldCup.UnitTest
                 line.AddRange(BitConverter.GetBytes((int)((float)r["主队赢"] * 1000)));
                 line.AddRange(BitConverter.GetBytes((int)((float)r["客队赢"] * 1000)));
                 line.AddRange(BitConverter.GetBytes((int)((float)r["平局"] * 1000)));
-
+                string datetime = r["比赛时间"].ToString();
+                datetime = datetime.Substring(0, 4) + "-" + datetime.Substring(4, 2) + "-"
+                    + datetime.Substring(6, 2) + datetime.Substring(8, datetime.Length - 8);
+                DateTime time = DateTime.Parse(datetime);
+                line.AddRange(BitConverter.GetBytes(GetTimeStamp(time)));
                 arr.AddRange(line.ToArray());
                 line.Clear();
             }
@@ -442,7 +463,7 @@ namespace WorldCup.UnitTest
             // 多参数输入，必须从右至左压栈！！！！
             sb.EmitPush(1000); // 押注额度
             sb.EmitPush(1);  // 押主队赢
-            sb.EmitPush(242404); // 赛事ID
+            sb.EmitPush(242438); // 赛事ID
             sb.EmitPush(Neo.Helper.HexToBytes(_addressHex)); //地址
             sb.EmitPush(4);
             sb.Emit(Neo.VM.OpCode.PACK);
@@ -486,7 +507,7 @@ namespace WorldCup.UnitTest
             sb.EmitPush(1000); // 押注额度
             sb.EmitPush(1320); // 赔率
             sb.EmitPush(1);  // 押主队赢
-            sb.EmitPush(242404); // 赛事ID
+            sb.EmitPush(242438); // 赛事ID
             sb.EmitPush(4);
             sb.Emit(Neo.VM.OpCode.PACK);
             sb.EmitPush("BetRecordArray");
@@ -526,7 +547,7 @@ namespace WorldCup.UnitTest
             sb.EmitPush(_rnd.Next());
             sb.Emit(Neo.VM.OpCode.DROP);
             // sb.EmitPush(Neo.Helper.HexToBytes(_addressHex)); //地址
-            sb.EmitPush(242404); // 赛事ID
+            sb.EmitPush(242438); // 赛事ID
             sb.EmitPush(1);
             sb.Emit(Neo.VM.OpCode.PACK);
             sb.EmitPush("GetOddsLine");
@@ -565,7 +586,7 @@ namespace WorldCup.UnitTest
             Neo.VM.ScriptBuilder sb = new Neo.VM.ScriptBuilder();
             sb.EmitPush(_rnd.Next());
             sb.Emit(Neo.VM.OpCode.DROP);
-            sb.EmitPush(242404); // 赛事ID
+            sb.EmitPush(242438); // 赛事ID
             sb.EmitPush(1);
             sb.Emit(Neo.VM.OpCode.PACK);
             sb.EmitPush("GetOddsData");
@@ -604,7 +625,7 @@ namespace WorldCup.UnitTest
             Neo.VM.ScriptBuilder sb = new Neo.VM.ScriptBuilder();
             sb.EmitPush(_rnd.Next());
             sb.Emit(Neo.VM.OpCode.DROP);
-            sb.EmitPush(242404); // 赛事ID
+            sb.EmitPush(242438); // 赛事ID
             sb.EmitPush(1);
             sb.Emit(Neo.VM.OpCode.PACK);
             sb.EmitPush("GetOddsList");
@@ -879,7 +900,7 @@ namespace WorldCup.UnitTest
             sb.Emit(Neo.VM.OpCode.DROP);
             // 多参数调用时，必须从右至左压栈！！！
             sb.EmitPush(1);
-            sb.EmitPush(242404);
+            sb.EmitPush(242438);
             sb.EmitPush(2);
             sb.Emit(Neo.VM.OpCode.PACK);
             sb.EmitPush("GetIntOdds");
@@ -1040,7 +1061,7 @@ namespace WorldCup.UnitTest
             Neo.VM.ScriptBuilder sb = new Neo.VM.ScriptBuilder();
             sb.EmitPush(_rnd.Next());
             sb.Emit(Neo.VM.OpCode.DROP);
-            sb.EmitPush(242404); // 赛事ID
+            sb.EmitPush(242438); // 赛事ID
             sb.EmitPush(1);
             sb.Emit(Neo.VM.OpCode.PACK);
             sb.EmitPush("GetMatchResult");
@@ -1121,6 +1142,91 @@ namespace WorldCup.UnitTest
             att.data = _addressHash;
             att.usage = TransactionAttributeUsage.Script;
             tx.attributes = new ThinNeo.Attribute[] { att };
+            tx.version = 0x01;
+            tx.type = TransactionType.InvocationTransaction;
+            tx.inputs = new TransactionInput[0];
+            tx.outputs = new TransactionOutput[0];
+            InvokeTransData data = new InvokeTransData();
+            data.gas = new ThinNeo.Fixed8(0);
+            data.script = sb.ToArray();
+            tx.extdata = data;
+            MemoryStream ms = new MemoryStream();
+            tx.SerializeUnsigned(ms);
+            byte[] signdata = ThinNeo.Helper.Sign(ms.ToArray(), _privateKey);
+            ms.Close();
+            tx.AddWitness(signdata, _publicKey, _address);
+            MemoryStream msRet = new MemoryStream();
+            tx.Serialize(msRet);
+            string sRet = ThinNeo.Helper.Bytes2HexString(msRet.ToArray());
+            msRet.Close();
+            return sRet;
+        }
+        private static string TESTSetCalculate()
+        {
+            byte[] betRecord = new byte[] { 0xe4, 0xb2, 0x03, 0x00, 0x01, 0x00, 0x32, 0x05, 0x00, 0x00, 0xe8, 0x03, 0x00, 0x00 };
+            Neo.VM.ScriptBuilder sb = new Neo.VM.ScriptBuilder();
+            sb.EmitPush(_rnd.Next());
+            sb.Emit(Neo.VM.OpCode.DROP);
+            sb.EmitPush(true);
+            sb.EmitPush(betRecord);
+            sb.EmitPush(2);
+            sb.Emit(Neo.VM.OpCode.PACK);
+            sb.EmitPush("SetCalcaute");
+            //调用已发布的合约，最后加一条EmitAppCall即可
+            var addr = _contractHash;
+            sb.EmitAppCall(addr.ToArray());
+            var _params = sb.ToArray();
+            var str2 = Neo.Helper.ToHexString(_params);
+
+            Transaction tx = new Transaction();
+            ThinNeo.Attribute att = new ThinNeo.Attribute();
+            att.data = _addressHash;
+            tx.attributes = new ThinNeo.Attribute[] { att };
+            att.usage = TransactionAttributeUsage.Script;
+            tx.version = 0x01;
+            tx.type = TransactionType.InvocationTransaction;
+            tx.inputs = new TransactionInput[0];
+            tx.outputs = new TransactionOutput[0];
+            InvokeTransData data = new InvokeTransData();
+            data.gas = new ThinNeo.Fixed8(0);
+            data.script = sb.ToArray();
+            tx.extdata = data;
+            MemoryStream ms = new MemoryStream();
+            tx.SerializeUnsigned(ms);
+            byte[] signdata = ThinNeo.Helper.Sign(ms.ToArray(), _privateKey);
+            ms.Close();
+            tx.AddWitness(signdata, _publicKey, _address);
+            MemoryStream msRet = new MemoryStream();
+            tx.Serialize(msRet);
+            string sRet = ThinNeo.Helper.Bytes2HexString(msRet.ToArray());
+            msRet.Close();
+            return sRet;
+        }
+        private static int GetTimeStamp(DateTime dt)
+        {
+            // 提前15分钟封盘
+            return (int)((dt - _startDateTime).TotalSeconds) - 900;
+        }
+        private static string TESTIsLockdown()
+        {
+            Neo.VM.ScriptBuilder sb = new Neo.VM.ScriptBuilder();
+            sb.EmitPush(_rnd.Next());
+            sb.Emit(Neo.VM.OpCode.DROP);
+            sb.EmitPush(242438); // 赛事ID
+            sb.EmitPush(1);
+            sb.Emit(Neo.VM.OpCode.PACK);
+            sb.EmitPush("IsLockdown");
+            //调用已发布的合约，最后加一条EmitAppCall即可
+            var addr = _contractHash;
+            sb.EmitAppCall(addr.ToArray());
+            var _params = sb.ToArray();
+            var str2 = Neo.Helper.ToHexString(_params);
+
+            Transaction tx = new Transaction();
+            ThinNeo.Attribute att = new ThinNeo.Attribute();
+            att.data = _addressHash;
+            tx.attributes = new ThinNeo.Attribute[] { att };
+            att.usage = TransactionAttributeUsage.Script;
             tx.version = 0x01;
             tx.type = TransactionType.InvocationTransaction;
             tx.inputs = new TransactionInput[0];

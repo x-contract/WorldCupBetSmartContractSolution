@@ -191,6 +191,8 @@ namespace WorldCupBetSmartContract
                     return GetMatchResult();
                 else if ("GetOddsData" == method)
                     return GetOddsData();
+                else if ("SetCalcaute" == method)
+                    return SetCalcaute((byte[])args[0], (bool)args[1]);
                 else
                     return "UNKNOWN CALL";
             }
@@ -314,6 +316,8 @@ namespace WorldCupBetSmartContract
             int odds = GetIntOdds(fixtureID, betType);
             if (0 == odds)
                 return new byte[] { 0xbb };
+            if (1 == odds)  // Bet has been lockdown.
+                return new byte[] { 0xcc };
             if (0 < GetMatchResult(fixtureID).Length)   //The match has been finished.
                 return new byte[] { 0xee };
 
@@ -353,20 +357,20 @@ namespace WorldCupBetSmartContract
                     continue;
                 if (GetBetType(betRecord) == CalcMatchResult(matchResult))
                 {
-                    int odds = GetOddsByMatchID(betRecord);
-                    if (0 < odds)      // cannot find match result.
+                    int odds = GetOddsFromBetRecord(betRecord);
+                    if (0 < odds)      // already find match result.
                     {
                         uint award = ((uint)(GetBetAmount(betRecord) * odds) / 1000);
                         uint balance = GetBalance(account);
                         balance = balance + award;
                         account = UpdateBalanceAmount(account, balance);
                         totalWinAmount = totalWinAmount + award;
+                        // Write to account.
+                        betRecord = SetCalcaute(betRecord, true);
+                        account = UpdateBetRecord(account, i, betRecord);
+                        Storage.Put(Storage.CurrentContext, address, account);
                     }
                 }
-                // Write to account.
-                betRecord = SetCalcaute(betRecord, true);
-                account = UpdateBetRecord(account, i, betRecord);
-                Storage.Put(Storage.CurrentContext, address, account);
             }
             return totalWinAmount;
         }
@@ -502,7 +506,7 @@ namespace WorldCupBetSmartContract
                 return new byte[0];
             byte[] temp = new byte[0];
             if (true == isCalc)
-                temp = new byte[] { 0xff };
+                temp = new byte[] { 0x0f };
             else
                 temp = new byte[] { 0x00 };
 
@@ -510,7 +514,7 @@ namespace WorldCupBetSmartContract
             ret = ret.Concat(betRecord.Range(6, betRecord.Length - 6));
             return ret;
         }
-        private static int GetOddsByMatchID(byte[] betRecord)
+        private static int GetOddsFromBetRecord(byte[] betRecord)
         {
             if (0 == betRecord.Length)
                 return 0;
@@ -557,19 +561,26 @@ namespace WorldCupBetSmartContract
             {
                 temp = BytesToInt(oddsLine, 20);
             }
-            return temp;
+            // Check bet timeslot is lockdown.
+            uint lockdown = BytesToUInt(oddsLine, 24);
+            if (Runtime.Time > lockdown)
+                return 1;
+            else
+                return temp;
         }
         private static byte[] GetOddsLine(int matchID)
         {
+            byte[] ret = new byte[0];
             byte[] oddsRawData = Storage.Get(Storage.CurrentContext, _keyOddsData);
             if (0 == oddsRawData.Length)
-                return new byte[] { 0xaa, 0xbb };
-            byte[] ret = new byte[0];
-            for (int i = 0; i < oddsRawData.Length; i += 24)
+                return ret;
+
+            for (int i = 0; i < oddsRawData.Length; i += 28)
             {
                 if (BytesToInt(oddsRawData, i) == matchID)
                 {
-                    ret = oddsRawData.Range(i, 24);
+                    ret = oddsRawData.Range(i, 28);
+                    break;
                 }
             }
             return ret;
