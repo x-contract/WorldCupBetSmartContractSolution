@@ -20,11 +20,11 @@
  * 4 bytes      4 bytes:0x00000002   4 bytes:0x00000001
  * ID       |    1st team score    |   2nd team score
  * 
- * 3. PushOddsData(string[] oddsListString)
+ * 3. PushOddsData(byte[] oddsData)
  * Input formatted binary odds data for players bet.
- * The format of odds list string(a line per record):
- * MatchID(Fixture),      主队让球,           客队让球,           主队赢,            客队赢,            平局
- *      4bytes     |       4bytes     |      4bytes     |      4bytes     |      4bytes     |      4bytes     |
+ * The format of odds raw data(total 30 bytes):
+ * MatchID(Fixture),      主队让球,           客队让球,           主队赢,            客队赢,            平局            比赛时间Timestamp       让球      主队让球
+ *      4bytes     |       4bytes     |      4bytes     |      4bytes     |      4bytes     |      4bytes     |     4 bytes         |   1 bytes  |   1 byte
  * 4. bool PushOddsList(string oddsList)
  * Input CSV format odds data for players bet.
  * The format of odds list string(a line per record):
@@ -44,7 +44,7 @@
  * Player bets match.
  * address: player address
  * fixtureID: The ID of soccer match
- * betType: 0x01 home team win, 0x02 away team win, 0x03 draw
+ * betType: 0x01 home team win, 0x02 away team win, 0x03 draw, 0x04 Home win(Concede), 0x05 Away win(Concede)
  * amount: bet chips amount
  * 
  * 7. bool Reset()
@@ -74,6 +74,16 @@
  * MatchResult array(6 bytes):
  * 4 bytes              1 byte              1 byte
  * Match ID     |   TeamA Score     |   TeamB Score
+ * 
+ * ========================================================================================================================
+ * About Concede points(gg and g):
+ * ------------------------------------------------------------------------------------------------------------------------
+ * fixtureID = 242438, 塞尔维亚:瑞士, gg = 1, 塞爾維亞 [0] 瑞士 [0]
+ * fixtureID = 242460, 英格兰:比利时, gg = 2, 英格蘭 [0/+0.5] 比利時 [0/-0.5]
+ * fixtureID = 242456, 瑞士:哥斯达黎加, gg = 3, 瑞士 [-0.5] 哥斯達黎加 [+0.5]
+ * fixtureID = 242452, 冰岛:克罗地亚, gg = 4, 冰島 [+0.5/+1] 克羅地亞 [-0.5/-1]
+ * fixtureID = 242441, 德国:瑞典, gg = 5, 	德國 [-1] 瑞典 [+1]
+ * 
  * ========================================================================================================================
  * 
  * 
@@ -193,6 +203,8 @@ namespace WorldCupBetSmartContract
                     return GetOddsData();
                 else if ("SetCalcaute" == method)
                     return SetCalcaute((byte[])args[0]);
+                else if ("GetConcedePoints" == method)
+                    return GetConcedePoints((int)args[0], (bool)args[1]);
                 else
                     return "UNKNOWN CALL";
             }
@@ -353,10 +365,40 @@ namespace WorldCupBetSmartContract
                 byte[] matchResult = GetMatchResult(matchID);
                 if (0 == matchResult.Length)
                     continue;
-                if (GetBetType(betRecord) == CalcMatchResult(matchResult))
+                if (3 <= GetBetType(betRecord))
                 {
+                    // Player wins 胜负平
+                    if (GetBetType(betRecord) == CalcMatchResult(matchResult))
+                    {
+                        int odds = GetOddsFromBetRecord(betRecord);
+                        if (0 < odds)      // already find match result.
+                        {
+                            uint award = ((uint)(GetBetAmount(betRecord) * odds) / 1000);
+                            uint balance = GetBalance(account);
+                            balance = balance + award;
+                            // Update account data.
+                            account = UpdateBetRecord(account, i, betRecord);
+                            account = UpdateBalanceAmount(account, balance);
+                            totalWinAmount = totalWinAmount + award;
+                        }
+                    }
+                }
+                else
+                {
+                    // Player wins 让球
                     int odds = GetOddsFromBetRecord(betRecord);
-                    if (0 < odds)      // already find match result.
+                    byte concedeResult = CalcConcedeMatchResult(matchResult);
+                    if (0x06 == concedeResult)
+                    {
+                        uint award = ((uint)(GetBetAmount(betRecord) * odds) / 1000) / 2;   // 打平拿一半
+                        uint balance = GetBalance(account);
+                        balance = balance + award;
+                        // Update account data.
+                        account = UpdateBetRecord(account, i, betRecord);
+                        account = UpdateBalanceAmount(account, balance);
+                        totalWinAmount = totalWinAmount + award;
+                    }
+                    else if (GetBetType(betRecord) == concedeResult)
                     {
                         uint award = ((uint)(GetBetAmount(betRecord) * odds) / 1000);
                         uint balance = GetBalance(account);
@@ -558,6 +600,14 @@ namespace WorldCupBetSmartContract
             {
                 temp = BytesToInt(oddsLine, 20);
             }
+            else if (4 == betType)
+            {
+                temp = BytesToInt(oddsLine, 4);
+            }
+            else if (5 == betType)
+            {
+                temp = BytesToInt(oddsLine, 8);
+            }
             // Check bet timeslot is lockdown.
             uint lockdown = BytesToUInt(oddsLine, 24);
             if (Runtime.Time > lockdown)
@@ -572,15 +622,22 @@ namespace WorldCupBetSmartContract
             if (0 == oddsRawData.Length)
                 return ret;
 
-            for (int i = 0; i < oddsRawData.Length; i += 28)
+            for (int i = 0; i < oddsRawData.Length; i += 30)
             {
                 if (BytesToInt(oddsRawData, i) == matchID)
                 {
-                    ret = oddsRawData.Range(i, 28);
+                    ret = oddsRawData.Range(i, 30);
                     break;
                 }
             }
             return ret;
+        }
+        private static byte[] GetConcedeData(int matchID)
+        {
+            byte[] oddsLine = GetOddsLine(matchID);
+            if (0 == oddsLine.Length)
+                return new byte[0];
+            return oddsLine.Range(28, 2);
         }
         private static uint GetLastApplyChipsTimeStamp(byte[] account)
         {
@@ -628,6 +685,50 @@ namespace WorldCupBetSmartContract
         private static byte[] GetMatchResult()
         {
             return Storage.Get(Storage.CurrentContext, _keyMatchResult);
+        }
+        private static byte[] GetConcedePoints(int gg, bool isHomeConcede)
+        {
+            int i = (gg - 1) / 2;
+            int j = i * 5;
+            if (false == isHomeConcede)
+                j = 0 - j;
+            byte[] ret = IntToBytes(j);
+            if (0 == gg % 2)
+            {
+                int k = (i + 1) * 5;
+                if (false == isHomeConcede)
+                    k = 0 - k;
+                ret = ret.Concat(IntToBytes(k));
+            }
+            return ret;
+        }
+        private static byte CalcConcedeMatchResult(byte[] matchResult)
+        {
+            if (0 == matchResult.Length)
+                return 0x00;
+            int fixtureID = BytesToInt(matchResult, 4);
+            int scoreA = matchResult.Range(4, 1)[0];
+            int scoreB = matchResult.Range(5, 1)[0];
+            byte[] gg = GetConcedeData(fixtureID);
+            bool isHomeConcede = false;
+            if (0 < gg[1])
+                isHomeConcede = true;
+            byte[] concedeResult = GetConcedePoints(gg[0], isHomeConcede);
+            if (8 == concedeResult.Length)
+            {
+                int point = BytesToInt(concedeResult, 4);
+                if (scoreA * 10 - point == scoreB * 10)
+                    return 0x06;    //  Draw in case of conceded.
+            }
+            else    // 4 == concedeResult.Length
+            {
+                int point = BytesToInt(concedeResult, 0);
+                if (scoreA * 10 - point > scoreB * 10)
+                    return 0x04;
+                else
+                    return 0x05;
+            }
+            return 0x00;
         }
         #endregion
 

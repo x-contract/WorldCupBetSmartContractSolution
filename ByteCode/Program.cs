@@ -26,26 +26,8 @@ namespace WorldCup.UnitTest
         private static byte[] _privateKey = ThinNeo.Helper.HexString2Bytes("6628084b9180ae7491fa1587638566524a39d6f8e8a90d7b5b6a96320cf0a6fd");
 
         // 合约地址,该地址随合约部署每次都必须修改！！！
-        private static UInt160 _contractHash = UInt160.Parse("0xec6abcdc225e02ac24dab68231c0cc3153118efc");
+        private static UInt160 _contractHash = UInt160.Parse("0xbd66d6c405ac0bb5f44246ce39d8ec1dd05df3e0");
         private static Hash160 _addressHash = ThinNeo.Helper.GetScriptHashFromPublicKey(_publicKey);
-
-        private static  string OddsList = 
-            "242404,20180614 23:00,俄罗斯,沙地阿拉伯,1940,1920,1340,8400,4150" + "\r\n" +
-            "242405,20180615 20:00,埃及,乌拉圭,1800,2060,5850,1500,3700" + "\r\n" +
-            "242406,20180615 23:00,摩洛哥,伊朗,1980,1880,2200,3200,2950" + "\r\n" +
-            "242407,20180616 02:00,葡萄牙,西班牙,1920,1940,3650,1900,3300" + "\r\n" +
-            "242408,20180616 18:00,法国,澳洲,1900,1960,1160,14000,5700" + "\r\n" +
-            "242410,20180616 21:00,阿根廷,冰岛,1840,2020,1280,9500,4500" + "\r\n" +
-            "242409,20180616 23:59,秘鲁,丹麦,1780,2080,3280,2050,3200" + "\r\n" +
-            "242411,20180617 03:00,克罗地亚,尼日利亚,1860,2000,1850,3750,3350" + "\r\n" +
-            "242412,20180617 20:00,哥斯达黎加,塞尔维亚,18400,20200,3600,1950,3200" + "\r\n" +
-            "242413,20180617 23:00,德国,墨西哥,2100,1760,1380,6800,4200" + "\r\n" +
-            "242414,20180618 02:00,巴西,瑞士,1880,1980,1320,7600,4600" + "\r\n" +
-            "242424,20180618 20:00,瑞典,南韩,2080,1780,2080,3220,3200" + "\r\n" +
-            "242425,20180618 23:00,比利时,巴拿马,1860,2000,1120,1600,6650" + "\r\n" +
-            "242426,20180619 02:00,突尼西亚,英格兰,1780,2080,8600,1280,4750" + "\r\n" +
-            "242427,20180619 20:00,哥伦比亚,日本,1960,1900,1700,4480,3350" + "\r\n" +
-            "242428,20180619 23:00,波兰,塞内加尔,2000,1860,21800,3150,3050";
 
         // private static string OddsList1 = "242404,20180614 23:00,俄罗斯,沙地阿拉伯,1940,1920,1340,8400,4150" + "\r\n";
         private static byte[] MatchResult = new byte[] { 6, 179, 3, 0, 3, 2, 229, 178, 3, 0, 1, 1, 230, 178, 3, 0, 1, 3 };
@@ -58,10 +40,10 @@ namespace WorldCup.UnitTest
             //code = TESTGetOddsData();
             //SendRequest(code).GetAwaiter();
 
-            //code = TESTReset();
-            //SendRequest(code).GetAwaiter();
-            //code = TESTResetAcount();
-            //SendRequest(code).GetAwaiter();
+            code = TESTReset();
+            SendRequest(code).GetAwaiter();
+            code = TESTResetAcount();
+            SendRequest(code).GetAwaiter();
 
             code = TestApplyChips();
             SendRequest(code).GetAwaiter();
@@ -72,11 +54,11 @@ namespace WorldCup.UnitTest
             SendRequest(code).GetAwaiter();
             System.Threading.Thread.Sleep(20000);
 
-            //code = TestPushOddsList();
-            //SendRequest(code).GetAwaiter();
-            //System.Threading.Thread.Sleep(30000);
-            //code = TESTGetOddsList();
-            //SendRequest(code).GetAwaiter();
+            code = TestPushOddsList();
+            SendRequest(code).GetAwaiter();
+            System.Threading.Thread.Sleep(30000);
+            code = TESTGetOddsList();
+            SendRequest(code).GetAwaiter();
 
             code = TESTBet();
             SendRequest(code).GetAwaiter();
@@ -253,10 +235,24 @@ namespace WorldCup.UnitTest
         }
         private static string TestPushOddsList()
         {
+            OddsCaptureCore.MacauSlot macauSlot = new OddsCaptureCore.MacauSlot();
+            DataTable oddsList = macauSlot.AnalyzeDataAsync(false).GetAwaiter().GetResult();
+            StringBuilder sbOddsList = new StringBuilder();
+            foreach (DataRow row in oddsList.Rows)
+            {
+                foreach (DataColumn col in oddsList.Columns)
+                {
+                    sbOddsList.Append(row[col].ToString());
+                    sbOddsList.Append(",");
+                }
+                sbOddsList.Remove(sbOddsList.Length - 1, 1);
+                sbOddsList.Append("\r\n");
+            }
+
             Neo.VM.ScriptBuilder sb = new Neo.VM.ScriptBuilder();
             sb.EmitPush(_rnd.Next());
             sb.Emit(Neo.VM.OpCode.DROP);
-                sb.EmitPush(OddsList);
+                sb.EmitPush(sbOddsList.ToString());
             sb.EmitPush(1);
             sb.Emit(Neo.VM.OpCode.PACK);
             sb.EmitPush("PushOddsList");
@@ -393,6 +389,12 @@ namespace WorldCup.UnitTest
                     + datetime.Substring(6, 2) + datetime.Substring(8, datetime.Length - 8);
                 DateTime time = DateTime.Parse(datetime);
                 line.AddRange(BitConverter.GetBytes(GetTimeStamp(time)));
+                line.Add((byte)(int)r["让球"]);
+                if ("A" == r["让球队伍"].ToString())
+                    line.AddRange(BitConverter.GetBytes(false));
+                else
+                    line.AddRange(BitConverter.GetBytes(true));
+
                 arr.AddRange(line.ToArray());
                 line.Clear();
             }
@@ -444,7 +446,7 @@ namespace WorldCup.UnitTest
             sb.Emit(Neo.VM.OpCode.DROP);
             // 多参数输入，必须从右至左压栈！！！！
             sb.EmitPush(1000); // 押注额度
-            sb.EmitPush(1);  // 押主队赢
+            sb.EmitPush(4);  // 押主队赢
             sb.EmitPush(242438); // 赛事ID
             sb.EmitPush(Neo.Helper.HexToBytes(_addressHex)); //地址
             sb.EmitPush(4);
